@@ -1,4 +1,5 @@
 target/
 .idea/
 *.iml
-/covid-files/temp.json
+.DS_Store
+
