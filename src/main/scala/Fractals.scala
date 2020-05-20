@@ -33,6 +33,7 @@ object Fractals extends SimpleSwingApplication {
     var rotation: Double = 0.00
     var pixelCount: Int = 50000
     var restrictPointChoice: Boolean = false
+    var tetherHueToRefresh: Boolean = false
     var hue: Float = 0.3f
     var color: Int = _
     def newColor(): Unit = color = getHSBColor(hue, 1.0f, 1.0f).getRGB
@@ -65,6 +66,9 @@ object Fractals extends SimpleSwingApplication {
         g.setColor(Color.BLACK)
         g.fill(new Rectangle2D.Float(0f, 0f, A.toFloat, A.toFloat))
         g.dispose()
+      }
+      if (tetherHueToRefresh){
+        hue = hue + 0.01f
       }
       newColor()
       plotPoints()
@@ -108,6 +112,9 @@ object Fractals extends SimpleSwingApplication {
         doRefresh()
       case KeyPressed(_, Key.R, _, _) =>
         restrictPointChoice = !restrictPointChoice
+        doRefresh()
+      case KeyPressed(_, Key.T, _, _) =>
+        tetherHueToRefresh = !tetherHueToRefresh
         doRefresh()
       case KeyPressed(_, Key.H, _, _) =>
         hue = hue + 0.01f
