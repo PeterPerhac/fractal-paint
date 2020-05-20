@@ -13,6 +13,7 @@ Up/Down | increase/decrease distance a dot will travel from one point to the nex
 A/Z | add/remove points to the master polygon
 S/X | more/fewer dots will be painted each redraw
 Space | do / don't redraw the whole canvas on each refresh
+C | toggle a point in the centre of the polygon
 R | restrict choice of next point (dot will not attempt to go towards the same point twice in a row)
 H | change the hue of the dots' colour
 Q | quit

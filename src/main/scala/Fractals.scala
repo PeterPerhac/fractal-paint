@@ -27,6 +27,7 @@ object Fractals extends SimpleSwingApplication {
     val canvas = new BufferedImage(A, A, BufferedImage.TYPE_INT_RGB)
 
     var polyPointCount: Int = 3
+    var addCenterPoint: Boolean = false
     var doClear: Boolean = true
     var distance: Double = 0.50
     var pixelCount: Int = 50000
@@ -42,9 +43,12 @@ object Fractals extends SimpleSwingApplication {
       def int(d: Double): Int = d.round.toInt
       val step: Double = 2 * Pi / nSides
       val halfPi = Pi / 2
-      (0 until nSides).toArray.map { idx =>
+      val outerPoints = (0 until nSides).toArray.map { idx =>
         Point(int(cos(idx * step - halfPi) * R), int(sin(idx * step - halfPi) * R)) + Vector(A / 2, A / 2)
       }
+      if (addCenterPoint) {
+        outerPoints :+ Point(A / 2, A / 2)
+      } else outerPoints
     }
 
     def updateTitle(): Unit =
@@ -88,6 +92,10 @@ object Fractals extends SimpleSwingApplication {
       case KeyPressed(_, Key.Space, _, _) =>
         doClear = !doClear
         if (doClear) doRefresh() else updateTitle()
+      case KeyPressed(_, Key.C, _, _) =>
+        addCenterPoint = !addCenterPoint
+        polygon = newPolygon(polyPointCount)
+        doRefresh()
       case KeyPressed(_, Key.R, _, _) =>
         restrictPointChoice = !restrictPointChoice
         doRefresh()
