@@ -1,3 +1,5 @@
+package com.perhac.toys.fractal_paint
+
 import java.awt.Color
 import java.awt.Color.getHSBColor
 import java.awt.geom.Rectangle2D
@@ -17,10 +19,9 @@ case class Point(x: Int, y: Int) {
   def withinBounds(maxX: Int, maxY: Int): Boolean = x >= 0 && x < maxX && y >= 0 && y < maxY
 }
 
-object Fractals extends SimpleSwingApplication {
+object FractalPaint extends SimpleSwingApplication {
 
   val A: Int = 1024
-  val R: Int = A / 4
 
   class DataPanel(frame: MainFrame) extends Panel {
 
@@ -30,7 +31,9 @@ object Fractals extends SimpleSwingApplication {
     var addCenterPoint: Boolean = false
     var doClear: Boolean = true
     var distance: Double = 0.50
+    var radius: Double = A / 3
     var rotation: Double = 0.00
+    val translation: Vector = Vector(A / 2, A / 2)
     var pixelCount: Int = 50000
     var restrictPointChoice: Boolean = false
     var tetherHueToRefresh: Boolean = false
@@ -46,7 +49,7 @@ object Fractals extends SimpleSwingApplication {
       val step: Double = 2 * Pi / nSides
       val halfPi = Pi / 2
       val outerPoints = (0 until nSides).toArray.map { idx =>
-        Point(int(cos(idx * step - halfPi + rotation) * R), int(sin(idx * step - halfPi + rotation) * R)) + Vector(A / 2, A / 2)
+        Point(int(cos(idx * step - halfPi + rotation) * radius), int(sin(idx * step - halfPi + rotation) * radius)) + translation
       }
       if (addCenterPoint) {
         outerPoints :+ Point(A / 2, A / 2)
@@ -57,6 +60,7 @@ object Fractals extends SimpleSwingApplication {
       frame.title = s"$polyPointCount-sided polygon. " +
         f"distance = $distance%.2f, " +
         f"rotation = $rotation%.2f rad, " +
+        f"radius = $radius%.0f, " +
         s"points = $pixelCount ${if (restrictPointChoice) ", restricted choice of points" else ""}"
 
     def doRefresh(): Unit = {
@@ -67,7 +71,7 @@ object Fractals extends SimpleSwingApplication {
         g.fill(new Rectangle2D.Float(0f, 0f, A.toFloat, A.toFloat))
         g.dispose()
       }
-      if (tetherHueToRefresh){
+      if (tetherHueToRefresh) {
         hue = hue + 0.01f
       }
       newColor()
@@ -93,6 +97,14 @@ object Fractals extends SimpleSwingApplication {
         doRefresh()
       case KeyPressed(_, Key.Left, _, _) =>
         rotation = rotation - 0.010d
+        polygon = newPolygon(polyPointCount)
+        doRefresh()
+      case KeyPressed(_, Key.I, _, _) =>
+        radius = radius + 1
+        polygon = newPolygon(polyPointCount)
+        doRefresh()
+      case KeyPressed(_, Key.O, _, _) =>
+        radius = radius - 1
         polygon = newPolygon(polyPointCount)
         doRefresh()
       case KeyPressed(_, Key.S, _, _) =>
