@@ -30,6 +30,7 @@ object Fractals extends SimpleSwingApplication {
     var addCenterPoint: Boolean = false
     var doClear: Boolean = true
     var distance: Double = 0.50
+    var rotation: Double = 0.00
     var pixelCount: Int = 50000
     var restrictPointChoice: Boolean = false
     var hue: Float = 0.3f
@@ -44,7 +45,7 @@ object Fractals extends SimpleSwingApplication {
       val step: Double = 2 * Pi / nSides
       val halfPi = Pi / 2
       val outerPoints = (0 until nSides).toArray.map { idx =>
-        Point(int(cos(idx * step - halfPi) * R), int(sin(idx * step - halfPi) * R)) + Vector(A / 2, A / 2)
+        Point(int(cos(idx * step - halfPi + rotation) * R), int(sin(idx * step - halfPi + rotation) * R)) + Vector(A / 2, A / 2)
       }
       if (addCenterPoint) {
         outerPoints :+ Point(A / 2, A / 2)
@@ -54,6 +55,7 @@ object Fractals extends SimpleSwingApplication {
     def updateTitle(): Unit =
       frame.title = s"$polyPointCount-sided polygon. " +
         f"distance = $distance%.2f, " +
+        f"rotation = $rotation%.2f rad, " +
         s"points = $pixelCount ${if (restrictPointChoice) ", restricted choice of points" else ""}"
 
     def doRefresh(): Unit = {
@@ -80,6 +82,14 @@ object Fractals extends SimpleSwingApplication {
         doRefresh()
       case KeyPressed(_, Key.Down, _, _) =>
         distance = distance - 0.005d
+        doRefresh()
+      case KeyPressed(_, Key.Right, _, _) =>
+        rotation = rotation + 0.010d
+        polygon = newPolygon(polyPointCount)
+        doRefresh()
+      case KeyPressed(_, Key.Left, _, _) =>
+        rotation = rotation - 0.010d
+        polygon = newPolygon(polyPointCount)
         doRefresh()
       case KeyPressed(_, Key.S, _, _) =>
         pixelCount = pixelCount + 500
