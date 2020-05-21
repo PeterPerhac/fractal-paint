@@ -29,11 +29,12 @@ Q | quit
 ## Examples
 
 ![Example 1](readme/colourful-flowers.png)
-![Example 2](readme/embroidery.png)
-![Example 3](readme/biohazard-like.png)
-![Example 4](readme/electric.png)
-![Example 5](readme/flowers.png)
-![Example 6](readme/sharp.png)
+![Example 2](readme/triangle.png)
+![Example 3](readme/embroidery.png)
+![Example 4](readme/biohazard-like.png)
+![Example 5](readme/electric.png)
+![Example 6](readme/flowers.png)
+![Example 7](readme/sharp.png)
 ![Animated example](readme/animated.gif)
 
 
