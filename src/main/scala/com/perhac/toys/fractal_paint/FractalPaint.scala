@@ -6,6 +6,7 @@ import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 
 import scala.collection.immutable.LazyList.unfold
+import scala.collection.mutable.ListBuffer
 import scala.swing._
 import scala.swing.event.{Key, KeyPressed}
 import scala.util.Random
@@ -23,22 +24,59 @@ object FractalPaint extends SimpleSwingApplication {
 
   val A: Int = 1024
 
+  case class Configuration(
+        polyPointCount: Int,
+        hue: Float,
+        addCenterPoint: Boolean,
+        doClear: Boolean,
+        restrictPointChoice: Boolean,
+        tetherHueToRefresh: Boolean,
+        distance: Double,
+        radius: Double,
+        rotation: Double,
+        pixels: Int
+  )
+
+  val defaultConfiguration: Configuration = Configuration(
+    polyPointCount = 3,
+    hue = 0.3f,
+    addCenterPoint = false,
+    doClear = true,
+    restrictPointChoice = false,
+    tetherHueToRefresh = false,
+    distance = 0.5,
+    radius = A / 3,
+    rotation = 0.00d,
+    pixels = 30000
+  )
+
   class DataPanel(frame: MainFrame) extends Panel {
 
     val canvas = new BufferedImage(A, A, BufferedImage.TYPE_INT_RGB)
+    val playbackBuffer: ListBuffer[ReplayableAction] = ListBuffer.empty
 
-    var polyPointCount: Int = 3
-    var addCenterPoint: Boolean = false
-    var doClear: Boolean = true
-    var distance: Double = 0.50
-    var radius: Double = A / 3
-    var rotation: Double = 0.00
+    def reset(): Unit = {
+      polyPointCount = currentConfiguration.polyPointCount
+      hue = currentConfiguration.hue
+      addCenterPoint = currentConfiguration.addCenterPoint
+      doClear = currentConfiguration.doClear
+      restrictPointChoice = currentConfiguration.restrictPointChoice
+      tetherHueToRefresh = currentConfiguration.tetherHueToRefresh
+      distance = currentConfiguration.distance
+      radius = currentConfiguration.radius
+      rotation = currentConfiguration.rotation
+      pixels = currentConfiguration.pixels
+      newColor()
+      polygon = newPolygon(polyPointCount)
+    }
+
+    var currentConfiguration: Configuration = defaultConfiguration
+    var playbackActive: Boolean = false
+    var polyPointCount, color, pixels: Int = _
+    var addCenterPoint, doClear, restrictPointChoice, tetherHueToRefresh: Boolean = _
+    var distance, radius, rotation: Double = _
+    var hue: Float = _
     val translation: Vector = Vector(A / 2, A / 2)
-    var pixelCount: Int = 50000
-    var restrictPointChoice: Boolean = false
-    var tetherHueToRefresh: Boolean = false
-    var hue: Float = 0.3f
-    var color: Int = _
     def newColor(): Unit = color = getHSBColor(hue, 1.0f, 1.0f).getRGB
 
     var polygon: Array[Point] = newPolygon(polyPointCount)
@@ -61,15 +99,19 @@ object FractalPaint extends SimpleSwingApplication {
         f"distance = $distance%.2f, " +
         f"rotation = $rotation%.2f rad, " +
         f"radius = $radius%.0f, " +
-        s"points = $pixelCount ${if (restrictPointChoice) ", restricted choice of points" else ""}"
+        s"points = $pixels ${if (restrictPointChoice) ", restricted choice of points" else ""}"
+
+    def clearCanvas(): Unit = {
+      val g = canvas.createGraphics()
+      g.setBackground(Color.BLACK)
+      g.setColor(Color.BLACK)
+      g.fill(new Rectangle2D.Float(0f, 0f, A.toFloat, A.toFloat))
+      g.dispose()
+    }
 
     def doRefresh(): Unit = {
       if (doClear) {
-        val g = canvas.createGraphics()
-        g.setBackground(Color.BLACK)
-        g.setColor(Color.BLACK)
-        g.fill(new Rectangle2D.Float(0f, 0f, A.toFloat, A.toFloat))
-        g.dispose()
+        clearCanvas()
       }
       if (tetherHueToRefresh) {
         hue = hue + 0.01f
@@ -84,65 +126,100 @@ object FractalPaint extends SimpleSwingApplication {
     focusable = true
     requestFocusInWindow()
 
+    sealed trait Action extends Function0[Unit] { def apply(): Unit }
+    object Action {
+
+      val noop: Action = NonReplayableAction(() => ())
+
+      def replayable(
+            body: => Unit,
+            updatePolygon: Boolean = true,
+            refreshCondition: () => Boolean = () => true
+      ): Action =
+        ReplayableAction(() => {
+          val _ = body
+          if (updatePolygon) polygon = newPolygon(polyPointCount)
+          if (refreshCondition()) doRefresh() else updateTitle()
+        })
+
+      def nonReplayable(body: => Unit): Action =
+        NonReplayableAction(() => if (!playbackActive) { val _ = body })
+    }
+
+    case class ReplayableAction(body: () => Unit) extends Action {
+      override def apply(): Unit = body()
+    }
+
+    case class NonReplayableAction(body: () => Unit) extends Action {
+      override def apply(): Unit = body()
+    }
+
+    import Action._
+    val action: Key.Value => Action = {
+      case Key.Up     => replayable({ distance = distance + 0.005d }, updatePolygon = false)
+      case Key.Down   => replayable({ distance = distance - 0.005d }, updatePolygon = false)
+      case Key.Right  => replayable { rotation = rotation + 0.010d }
+      case Key.Left   => replayable { rotation = rotation - 0.010d }
+      case Key.I      => replayable { radius = radius + 1 }
+      case Key.O      => replayable { radius = radius - 1 }
+      case Key.Equals => replayable({ pixels = pixels + 500 }, updatePolygon = false)
+      case Key.Minus  => replayable({ if (pixels > 500) pixels = pixels - 500 }, updatePolygon = false)
+      case Key.Space  => replayable({ doClear = !doClear }, updatePolygon = false, refreshCondition = () => doClear)
+      case Key.C      => replayable { addCenterPoint = !addCenterPoint }
+      case Key.R      => replayable({ restrictPointChoice = !restrictPointChoice }, updatePolygon = false)
+      case Key.T      => replayable({ tetherHueToRefresh = !tetherHueToRefresh }, updatePolygon = false)
+      case Key.H      => replayable({ hue = hue + 0.01f }, updatePolygon = false)
+      case Key.N      => nonReplayable { currentConfiguration = defaultConfiguration; playbackBuffer.clear; reset(); doRefresh() }
+      case Key.A      => replayable({ polyPointCount = polyPointCount + 1 }, refreshCondition = () => doClear)
+      case Key.Z      => replayable({ if (polyPointCount > 3) polyPointCount = polyPointCount - 1 }, refreshCondition = () => doClear)
+      case Key.Q      => nonReplayable(frame.closeOperation())
+      case Key.Key0 =>
+        nonReplayable {
+          playbackBuffer.clear()
+          currentConfiguration = Configuration(
+            polyPointCount = polyPointCount,
+            hue = hue,
+            addCenterPoint = addCenterPoint,
+            doClear = doClear,
+            restrictPointChoice = restrictPointChoice,
+            tetherHueToRefresh = tetherHueToRefresh,
+            distance = distance,
+            radius = radius,
+            rotation = rotation,
+            pixels = pixels
+          )
+        }
+      case Key.BackSpace =>
+        nonReplayable {
+          val sequence = playbackBuffer.toVector
+          if (sequence.nonEmpty) {
+            new Thread {
+              override def run(): Unit = {
+                playbackActive = true
+                reset()
+                clearCanvas()
+                try {
+                  sequence.foreach { a =>
+                    a(); Thread.sleep(10)
+                  }
+                } finally {
+                  playbackActive = false
+                }
+              }
+            }.start()
+          }
+        }
+      case vk => nonReplayable(println(s"Unknown command: $vk"))
+    }
+
     reactions += {
-      case KeyPressed(_, Key.Up, _, _) =>
-        distance = distance + 0.005d
-        doRefresh()
-      case KeyPressed(_, Key.Down, _, _) =>
-        distance = distance - 0.005d
-        doRefresh()
-      case KeyPressed(_, Key.Right, _, _) =>
-        rotation = rotation + 0.010d
-        polygon = newPolygon(polyPointCount)
-        doRefresh()
-      case KeyPressed(_, Key.Left, _, _) =>
-        rotation = rotation - 0.010d
-        polygon = newPolygon(polyPointCount)
-        doRefresh()
-      case KeyPressed(_, Key.I, _, _) =>
-        radius = radius + 1
-        polygon = newPolygon(polyPointCount)
-        doRefresh()
-      case KeyPressed(_, Key.O, _, _) =>
-        radius = radius - 1
-        polygon = newPolygon(polyPointCount)
-        doRefresh()
-      case KeyPressed(_, Key.S, _, _) =>
-        pixelCount = pixelCount + 500
-        doRefresh()
-      case KeyPressed(_, Key.X, _, _) =>
-        if (pixelCount > 500) {
-          pixelCount = pixelCount - 500
-          doRefresh()
+      case KeyPressed(_, k, _, _) =>
+        action(k) match {
+          case ra: ReplayableAction =>
+            playbackBuffer.addOne(ra)
+            ra()
+          case na: NonReplayableAction => na()
         }
-      case KeyPressed(_, Key.Space, _, _) =>
-        doClear = !doClear
-        if (doClear) doRefresh() else updateTitle()
-      case KeyPressed(_, Key.C, _, _) =>
-        addCenterPoint = !addCenterPoint
-        polygon = newPolygon(polyPointCount)
-        doRefresh()
-      case KeyPressed(_, Key.R, _, _) =>
-        restrictPointChoice = !restrictPointChoice
-        doRefresh()
-      case KeyPressed(_, Key.T, _, _) =>
-        tetherHueToRefresh = !tetherHueToRefresh
-        doRefresh()
-      case KeyPressed(_, Key.H, _, _) =>
-        hue = hue + 0.01f
-        doRefresh()
-      case KeyPressed(_, Key.A, _, _) =>
-        polyPointCount = polyPointCount + 1
-        polygon = newPolygon(polyPointCount)
-        if (doClear) doRefresh() else updateTitle()
-      case KeyPressed(_, Key.Z, _, _) =>
-        if (polyPointCount > 3) {
-          polyPointCount = polyPointCount - 1
-          polygon = newPolygon(polyPointCount)
-          if (doClear) doRefresh() else updateTitle()
-        }
-      case KeyPressed(_, Key.Q, _, _) =>
-        frame.closeOperation()
     }
 
     def randomVertex(prevIdx: Int): Int = {
@@ -160,7 +237,7 @@ object FractalPaint extends SimpleSwingApplication {
           val idx = randomVertex(vIdx)
           val dot = p + (p.to(polygon(idx)) * distance)
           Some((dot, dot -> idx))
-      }.slice(1, pixelCount + 1) //discard annoying first pixel
+      }.slice(1, pixels + 1) //discard annoying first pixel
         .foreach(pixel => if (pixel.withinBounds(A, A)) { canvas.setRGB(pixel.x, pixel.y, color) })
 
     override def paintComponent(g: Graphics2D): Unit =
@@ -171,9 +248,8 @@ object FractalPaint extends SimpleSwingApplication {
   override def top: MainFrame = new MainFrame {
     contents = new DataPanel(this) {
       preferredSize = new Dimension(A, A)
-      updateTitle()
-      newColor()
-      plotPoints()
+      reset()
+      doRefresh()
     }
   }
 }
