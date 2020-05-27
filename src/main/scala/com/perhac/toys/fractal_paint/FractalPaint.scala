@@ -47,7 +47,7 @@ object FractalPaint extends SimpleSwingApplication {
     addCenterPoint = false,
     doClear = true,
     restrictPointChoice = false,
-    tetherHueToRefresh = false,
+    tetherHueToRefresh = true,
     distance = 0.5,
     radius = A / 3,
     rotation = 0.00d,
