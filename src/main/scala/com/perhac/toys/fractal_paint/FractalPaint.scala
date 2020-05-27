@@ -2,13 +2,17 @@ package com.perhac.toys.fractal_paint
 
 import java.awt.Color
 import java.awt.Color.getHSBColor
+import java.awt.event.ActionEvent
 import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 
+import javax.swing.Timer
+
 import scala.collection.immutable.LazyList.unfold
 import scala.collection.mutable.ListBuffer
+import scala.collection.{immutable, mutable}
 import scala.swing._
-import scala.swing.event.{Key, KeyPressed}
+import scala.swing.event.{Key, KeyPressed, KeyReleased}
 import scala.util.Random
 
 case class Vector(x: Double, y: Double) {
@@ -20,22 +24,22 @@ case class Point(x: Int, y: Int) {
   def withinBounds(maxX: Int, maxY: Int): Boolean = x >= 0 && x < maxX && y >= 0 && y < maxY
 }
 
+case class Configuration(
+      polyPointCount: Int,
+      hue: Float,
+      addCenterPoint: Boolean,
+      doClear: Boolean,
+      restrictPointChoice: Boolean,
+      tetherHueToRefresh: Boolean,
+      distance: Double,
+      radius: Double,
+      rotation: Double,
+      pixels: Int
+)
+
 object FractalPaint extends SimpleSwingApplication {
 
   val A: Int = 1024
-
-  case class Configuration(
-        polyPointCount: Int,
-        hue: Float,
-        addCenterPoint: Boolean,
-        doClear: Boolean,
-        restrictPointChoice: Boolean,
-        tetherHueToRefresh: Boolean,
-        distance: Double,
-        radius: Double,
-        rotation: Double,
-        pixels: Int
-  )
 
   val defaultConfiguration: Configuration = Configuration(
     polyPointCount = 3,
@@ -54,6 +58,9 @@ object FractalPaint extends SimpleSwingApplication {
 
     val canvas = new BufferedImage(A, A, BufferedImage.TYPE_INT_RGB)
     val playbackBuffer: ListBuffer[ReplayableAction] = ListBuffer.empty
+    val pressedKeys: collection.mutable.Set[Key.Value] = mutable.HashSet()
+    val autoResettableKeys: collection.immutable.Set[Key.Value] =
+      immutable.HashSet(Key.Space, Key.C, Key.R, Key.T, Key.N, Key.A, Key.Z, Key.Q)
 
     def reset(): Unit = {
       polyPointCount = currentConfiguration.polyPointCount
@@ -213,13 +220,8 @@ object FractalPaint extends SimpleSwingApplication {
     }
 
     reactions += {
-      case KeyPressed(_, k, _, _) =>
-        action(k) match {
-          case ra: ReplayableAction =>
-            playbackBuffer.addOne(ra)
-            ra()
-          case na: NonReplayableAction => na()
-        }
+      case KeyPressed(_, k, _, _)  => pressedKeys.addOne(k)
+      case KeyReleased(_, k, _, _) => pressedKeys.subtractOne(k)
     }
 
     def randomVertex(prevIdx: Int): Int = {
@@ -242,6 +244,21 @@ object FractalPaint extends SimpleSwingApplication {
 
     override def paintComponent(g: Graphics2D): Unit =
       g.drawImage(canvas, null, null)
+
+    new Timer(
+      20,
+      (_: ActionEvent) => {
+        pressedKeys.foreach { k =>
+          action(k) match {
+            case ra: ReplayableAction =>
+              playbackBuffer.addOne(ra)
+              ra()
+            case na: NonReplayableAction => na()
+          }
+          if (autoResettableKeys.contains(k)) pressedKeys.subtractOne(k)
+        }
+      }
+    ).start()
 
   }
 
