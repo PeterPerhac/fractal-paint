@@ -32,6 +32,8 @@ Q | quit
 
 ## Examples
 
+[![drawing](https://img.youtube.com/vi/vfpxNSX8G9E/2.jpg)](https://www.youtube.com/watch?v=vfpxNSX8G9E)
+
 ![Example 1](readme/colourful-flowers.png)
 ![Example 2](readme/triangle.png)
 ![Example 3](readme/embroidery.png)
