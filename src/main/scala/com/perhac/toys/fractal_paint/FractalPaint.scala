@@ -57,6 +57,7 @@ object FractalPaint extends SimpleSwingApplication {
   class DataPanel(frame: MainFrame) extends Panel {
 
     val canvas = new BufferedImage(A, A, BufferedImage.TYPE_INT_RGB)
+    val canvasRectangle = new Rectangle2D.Float(0f, 0f, A.toFloat, A.toFloat)
     val playbackBuffer: ListBuffer[ReplayableAction] = ListBuffer.empty
     val pressedKeys: collection.mutable.Set[Key.Value] = mutable.HashSet()
     val autoResettableKeys: collection.immutable.Set[Key.Value] =
@@ -112,7 +113,7 @@ object FractalPaint extends SimpleSwingApplication {
       val g = canvas.createGraphics()
       g.setBackground(Color.BLACK)
       g.setColor(Color.BLACK)
-      g.fill(new Rectangle2D.Float(0f, 0f, A.toFloat, A.toFloat))
+      g.fill(canvasRectangle)
       g.dispose()
     }
 
